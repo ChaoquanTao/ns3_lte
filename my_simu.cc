@@ -9,6 +9,10 @@ NS_LOG_COMPONENT_DEFINE("HelloSimulator");
 using namespace ns3 ;
 using namespace std ;
 
+#define GRID_WIDTH 10 
+#define ROW_INTERVAL 20 
+#define COLUMN_INTERCAL 20
+
 void CoutSeconds(){
     cout << Simulator::Now ().GetSeconds () << endl;
 }
@@ -22,10 +26,14 @@ Config::SetDefault("ns3::RadioBearerStatsCalculator::EpochDuration",TimeValue(Se
 	NodeContainer ueNodes ;
 	NodeContainer enbNodes ;
 
+	NodeContainer skyNodes ;
+
 	MobilityHelper mobility ;
 
 	enbNodes.Create(1);
-	ueNodes.Create(100);
+	ueNodes.Create(10);
+	skyNodes.Create(20) ;
+
 /*
 	Ptr<ListPositionAllocator> uePos = CreateObject<ListPositionAllocator>() ;
 	uePos->Add(Vector(100,100,35)) ;
@@ -45,15 +53,6 @@ Config::SetDefault("ns3::RadioBearerStatsCalculator::EpochDuration",TimeValue(Se
                                   "GridWidth", UintegerValue (10),
                                   "LayoutType", StringValue ("RowFirst"));
 
-/*
-	mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
-                              "Mode", StringValue ("Time"),
-                              "Time", StringValue ("s"),
-                              "Speed", StringValue ("ns3::ConstantRandomVariable[Constant=1.0]"),
-                              "Bounds", RectangleValue (Rectangle (0.0,200.0,0.0,200.0)));
-	
-		mobility.Install(ueNodes) ;
-*/
 
 	for(unsigned int i=0; i<ueNodes.GetN(); i++){
 		
@@ -71,11 +70,31 @@ Config::SetDefault("ns3::RadioBearerStatsCalculator::EpochDuration",TimeValue(Se
 
 	}
 
-	/**
-	mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-	mobility.SetPositionAllocator(uePos) ;
-	mobility.Install(ueNodes) ;
-**/
+
+/**
+ *设置天空节点属性
+ * */
+	Ptr<ListPositionAllocator> skyPos = CreateObject<ListPositionAllocator>() ;
+	for(unsigned int i=0; i<skyNodes.GetN(); i++){
+		int row = i/GRID_WIDTH ;
+		int column = i%GRID_WIDTH ;
+		skyPos->Add(Vector(row*COLUMN_INTERCAL+(COLUMN_INTERCAL/2), column*ROW_INTERVAL+ROW_INTERVAL/2,50)) ;
+		std::cout<<"x:"<<row*COLUMN_INTERCAL+(COLUMN_INTERCAL/2)<<" y:"<< column*ROW_INTERVAL+ROW_INTERVAL/2<<" z:"<<50<<std::endl ; 
+	}
+	mobility.SetPositionAllocator(skyPos) ;
+	
+	for(unsigned int i=0; i<skyNodes.GetN(); i++){
+ 		mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
+                              "Mode", StringValue ("Time"),
+                              "Time", StringValue ("22s"),
+                              "Speed", StringValue ("ns3::ConstantRandomVariable[Constant=1.0]"),
+                              "Bounds", RectangleValue (Rectangle ((i%10)*20,((i%10)+1)*20,(i/10)*20,((i/10)+1)*20)));
+	
+		mobility.Install(skyNodes.Get(i)) ;
+
+	}
+
+
 
 	MobilityHelper mobility2 ;
 	mobility2.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -95,15 +114,19 @@ Config::SetDefault("ns3::RadioBearerStatsCalculator::EpochDuration",TimeValue(Se
 	Ptr<LteHelper> lteHelper = CreateObject<LteHelper>() ;
 	NetDeviceContainer enbDevs ;
 	NetDeviceContainer ueDevs ;
+	NetDeviceContainer skyDevs ;
 
 	enbDevs = lteHelper->InstallEnbDevice(enbNodes) ;
 	ueDevs = lteHelper->InstallUeDevice(ueNodes) ;
+	skyDevs = lteHelper->InstallUeDevice(skyNodes) ;
 
 	lteHelper->Attach(ueDevs,enbDevs.Get(0)) ;
+	lteHelper->Attach(skyDevs,enbDevs.Get(0)) ;
 
 	enum EpsBearer::Qci q = EpsBearer::GBR_CONV_VOICE ;
 	EpsBearer bearer(q) ;
 	lteHelper->ActivateDataRadioBearer(ueDevs,bearer);
+	lteHelper->ActivateDataRadioBearer(skyDevs,bearer);
 
 	std::cout<<"test1========="<<std::endl ;
 
