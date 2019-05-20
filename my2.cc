@@ -4,17 +4,58 @@
 #include "ns3/mobility-helper.h"
 #include "ns3/animation-interface.h"
 #include "ns3/box.h"
+#include <pthread.h>
+#include<chrono>
+#include<thread>
+
 NS_LOG_COMPONENT_DEFINE("HelloSimulator");
 
 using namespace ns3 ;
 using namespace std ;
 
-#define GRID_WIDTH 20 
-#define ROW_INTERVAL 50 
-#define COLUMN_INTERVAL 50
+#define GRID_WIDTH 50 
+#define ROW_INTERVAL 20 
+#define COLUMN_INTERVAL 20
 
-void CoutSeconds(){
-	cout << Simulator::Now ().GetSeconds () << endl;
+
+int flag = 0;
+double power =0;
+
+
+void* say_hello(void* args)
+{
+
+this_thread::sleep_for(chrono::seconds(5));
+    cout << "Hello Runoob！" <<power<< endl;
+    return 0;
+}
+
+
+
+pthread_t th ;
+	int ret = pthread_create(&th, NULL, say_hello, NULL);
+
+
+void show(std::string context,uint16_t cellId, uint16_t rnti, double rsrp, double sinr, uint8_t componentCarrierId){
+//	std:: cout << cellId <<"  "<<rsrp<<endl;
+	power = rsrp ;
+/**
+	if(flag==0){
+		pthread_t th ;
+		cout << "-----------------------------"<<endl; 
+		int ret = pthread_create(&th, NULL, say_hello, NULL);
+        	if (ret != 0)
+        	{
+           		cout << "pthread_create error: error_code=" << ret << endl;
+        	}
+		flag=1 ;
+	}
+**/
+//	Simulator::Schedule(Seconds(0.1), NULL);
+}
+
+void CoutSeconds(Ptr<LteHelper> lteHelper){
+	Config::Connect ("/NodeList/[i]/DeviceList/[i]/$ns3::LteNetDevice/$ns3::LteUeNetDevice/ComponentCarrierMapUe/[i]/LteUePhy/ReportCurrentCellRsrpSinr",MakeCallback(&show));
 }
 
 
@@ -33,8 +74,8 @@ int main(int argc, char *argv[]){
 	MobilityHelper mobility ;
 
 	enbNodes.Create(1);
-	ueNodes.Create(400);
-	skyNodes.Create(400) ;
+	ueNodes.Create(10);
+	skyNodes.Create(10) ;
 
 	/*
 	   Ptr<ListPositionAllocator> uePos = CreateObject<ListPositionAllocator>() ;
@@ -43,26 +84,26 @@ int main(int argc, char *argv[]){
 	   uePos->Add(Vector(0,0,10)) ;
 	   */
 	Ptr<ListPositionAllocator> enbPos = CreateObject<ListPositionAllocator>() ;
-	enbPos->Add(Vector(500,500,100)) ;
+	enbPos->Add(Vector(500,500,50)) ;
 
 
 
 	mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
-			"MinX", DoubleValue (COLUMN_INTERVAL/2),
-			"MinY", DoubleValue (ROW_INTERVAL/2),
-			"DeltaX", DoubleValue (COLUMN_INTERVAL),
-			"DeltaY", DoubleValue (ROW_INTERVAL),
+			"MinX", DoubleValue (10.0),
+			"MinY", DoubleValue (10.0),
+			"DeltaX", DoubleValue (20.0),
+			"DeltaY", DoubleValue (20.0),
 			"GridWidth", UintegerValue (GRID_WIDTH),
 			"LayoutType", StringValue ("RowFirst"));
 
 
 	for(unsigned int i=0; i<ueNodes.GetN(); i++){
 
-		std::cout <<"left:"<< (i%GRID_WIDTH)*COLUMN_INTERVAL<<" right:"<<((i%GRID_WIDTH)+1)*COLUMN_INTERVAL<<" top:"<<(i/GRID_WIDTH)*ROW_INTERVAL<<" botom:"<<((i/GRID_WIDTH)+1)*ROW_INTERVAL<<std::endl ;
+		//std::cout <<"left:"<< (i%10)*20<<" right:"<<((i%10)+1)*20<<" top:"<<(i/10)*20<<" botom:"<<((i/10)+1)*20<<std::endl ;
 
 		mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
 				"Mode", StringValue ("Time"),
-				"Time", StringValue ("0.001s"),
+				"Time", StringValue ("1s"),
 				"Speed", StringValue ("ns3::ConstantRandomVariable[Constant=10.0]"),
 				"Bounds", RectangleValue (Rectangle ((i%GRID_WIDTH)*COLUMN_INTERVAL,((i%GRID_WIDTH)+1)*COLUMN_INTERVAL,(i/GRID_WIDTH)*ROW_INTERVAL,((i/GRID_WIDTH)+1)*ROW_INTERVAL)));
 
@@ -79,7 +120,7 @@ int main(int argc, char *argv[]){
 		int row = i/GRID_WIDTH ;
 		int column = i%GRID_WIDTH ;
 		skyPos->Add(Vector(row*COLUMN_INTERVAL+(COLUMN_INTERVAL/2), column*ROW_INTERVAL+ROW_INTERVAL/2,50)) ;
-		std::cout<<"x:"<<row*COLUMN_INTERVAL+(COLUMN_INTERVAL/2)<<" y:"<< column*ROW_INTERVAL+ROW_INTERVAL/2<<" z:"<<50<<std::endl ; 
+		//std::cout<<"x:"<<row*COLUMN_INTERVAL+(COLUMN_INTERVAL/2)<<" y:"<< column*ROW_INTERVAL+ROW_INTERVAL/2<<" z:"<<50<<std::endl ; 
 	}
 	mobility.SetPositionAllocator(skyPos) ;
 
@@ -96,7 +137,7 @@ int main(int argc, char *argv[]){
 
 
 		mobility.SetMobilityModel ("ns3::GaussMarkovMobilityModel",
-				"Bounds", BoxValue(Box((i%GRID_WIDTH)*COLUMN_INTERVAL, ((i%GRID_WIDTH)+1)*COLUMN_INTERVAL, (i/GRID_WIDTH)*ROW_INTERVAL, ((i/GRID_WIDTH)+1)*ROW_INTERVAL,50,50)),
+				"Bounds", BoxValue(Box((i%10)*20, ((i%10)+1)*20, (i/10)*20, ((i/10)+1)*20,50,50)),
 				"TimeStep", TimeValue (Seconds (0.5)),
 				"Alpha", DoubleValue (0.85),
 				"MeanVelocity", StringValue ("ns3::UniformRandomVariable[Min=800|Max=1200]"),
@@ -118,7 +159,7 @@ int main(int argc, char *argv[]){
 
 
 
-	AnimationInterface::SetConstantPosition(enbNodes.Get(0),500,500,50) ;
+	AnimationInterface::SetConstantPosition(enbNodes.Get(0),50,50,50) ;
 
 	Ptr<LteHelper> lteHelper = CreateObject<LteHelper>() ;
 	NetDeviceContainer enbDevs ;
@@ -137,11 +178,11 @@ int main(int argc, char *argv[]){
 	lteHelper->ActivateDataRadioBearer(ueDevs,bearer);
 	lteHelper->ActivateDataRadioBearer(skyDevs,bearer);
 
-	std::cout<<"test1========="<<std::endl ;
+	//std::cout<<"test1========="<<std::endl ;
 
 	AnimationInterface anim("lte.xml");
 	anim.SetMobilityPollInterval(Seconds(1)) ;
-/**	for(uint32_t i=0; i<ueNodes.GetN(); i++){
+	for(uint32_t i=0; i<ueNodes.GetN(); i++){
 		anim.UpdateNodeColor(ueNodes.Get(i),255,0,0) ;
 
 	}
@@ -149,14 +190,19 @@ int main(int argc, char *argv[]){
 		anim.UpdateNodeColor(skyNodes.Get(i),0,0,205) ;
 
 	}
-**/
-	lteHelper->EnablePhyTraces() ;
+
+	//lteHelper->EnablePhyTraces() ;
 	//lteHelper->EnableMacTraces() ;
 
-	std::cout<<"test2========="<<std::endl ;
+	//std::cout<<"test2========="<<std::endl ;
+//	Config::Connect ("/NodeList/*/DeviceList/*/ComponentCarrierMapUe/*/LteUePhy/ReportCurrentCellRsrpSinr",
+//                  MakeBoundCallback (&PhyStatsCalculator::ReportCurrentCellRsrpSinrCallback, m_phyStats));
+	Config::Connect ("/NodeList/*/DeviceList/*/$ns3::LteNetDevice/$ns3::LteUeNetDevice/ComponentCarrierMapUe/*/LteUePhy/ReportCurrentCellRsrpSinr",
+                    MakeCallback(&show));
+
 
 	Simulator::Stop(Seconds(10)) ;
-	Simulator::Schedule(Seconds(1), &CoutSeconds);
+//	Simulator::Schedule(Seconds(1), &CoutSeconds, lteHelper);
 	Simulator::Run();
 	//	Simulator::Destroy() ;
 	NS_LOG_UNCOND("Hello Simulator");
